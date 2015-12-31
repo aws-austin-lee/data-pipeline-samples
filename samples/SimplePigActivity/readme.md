@@ -1,16 +1,39 @@
-# Hello World
+# Simple PigActivity
 
-This sample defines a [shell command activity](http://docs.aws.amazon.com/datapipeline/latest/DeveloperGuide/dp-object-shellcommandactivity.html) to echo the text "hello world". The output, along with
-the acitivity log, is saved to an [S3](https://aws.amazon.com/s3/) bucket.
+This sample demonstrates how to use a [PigActivity](http://docs.aws.amazon.com/datapipeline/latest/DeveloperGuide/dp-object-pigactivity.html) to process a text input file transforming it from a ten-column dataset to an eight-column dataset.  The output, along with
+the acitivity log, is saved to an [S3](https://aws.amazon.com/s3/) bucket.  The sample pipeline definition also shows how to use a script with script variables.
 
 ## Parameters
 
 <table>
 <tr><th>Parameter</th><th>Description</th></tr>
 <tr>
-<td>myS3LogsPath</td>
+<td>myLogUri</td>
 <td>
-(Required) An S3 key where the shell output and activity log will be stored. Example: "s3://data-pipeline-samples-12345"
+(Required) An S3 path where the activity log will be stored. Example: "s3://data-pipeline-samples-12345"
+</td>
+</tr>
+<tr>
+<td>myPigScriptUri</td>
+<td>
+(Required) Use the following value for this sample - s3://data-pipeline-samples/SimplePigActivity/samplePigScript.pig</td>
+</tr>
+<tr>
+<td>myGeneratedScriptsPath</td>
+<td>
+(Required) An S3 path where debugging information for the Pig script will be logged.
+</td>
+</tr>
+<tr>
+<td>myS3Input</td>
+<td>
+(Required) An S3 directory path that contains one or more inputs to the script.  For this sample, you can use "s3://data-pipeline-samples/SimplePigActivity/input/".
+</td>
+</tr>
+<tr>
+<td>myS3Output</td>
+<td>
+(Required) An S3 directory path where the output of the pig script will be sent to.  Please ensure you have permission to write to this directory.
 </td>
 </tr>
 </table>
@@ -24,8 +47,8 @@ S3 bucket that it created.
 
 ```sh
  $> python setup.py
-# Creating resources for stack [dpl-samples-hello-world]...
-#   AWS::S3::Bucket: dpl-samples-hello-world-s3bucket-2bbt69s1j29c
+# Creating resources for stack [dpl-samples-simple-pig-activity]...
+#   AWS::S3::Bucket: dpl-samples-simple-pig-activity-s3bucket-2bbt69s1j29c
 ```
 
 ## Running this sample
@@ -34,7 +57,7 @@ Create a new pipeline. Throughout this section we assume that the HelloWorld sam
 your current working directory.
 
 ```sh
- $> aws datapipeline create-pipeline --name hello_world_pipeline --unique-id hello_world_pipeline 
+ $> aws datapipeline create-pipeline --name simple_pig_activity_pipeline --unique-id simple_pig_activity_pipeline_0001 
 # {
 #     "pipelineId": "df-074257336JDKJ6QWQCT4"
 # }
@@ -47,7 +70,7 @@ created.
 
 
 ```sh
-  $> aws datapipeline put-pipeline-definition --pipeline-id <your pipelineId> --pipeline-definition file://helloworld.json --parameter-values myS3LogsPath="s3://<your s3 logging path>"
+  $> aws datapipeline put-pipeline-definition --pipeline-id <your pipelineId> --pipeline-definition file://pig_activity_sample.json --parameter-values myLogUri=<your log uri> myPigScriptUri=s3://data-pipeline-samples/SimplePigActivity/samplePigScript.pig myGeneratedScriptsPath=<your generated scripts path> myS3Input=s3://data-pipeline-samples/SimplePigActivity/input/ myS3Output=<your output path>
 # {
 #     "validationErrors": [],
 #     "validationWarnings": [],
@@ -69,22 +92,44 @@ from this command will show FINISHED for all pipeine nodes. Note that it may tak
 ```sh
 
   >$ aws datapipeline list-runs --pipeline-id <your pipelineId>
-#          Name                                                Scheduled Start      Status                 
-#          ID                                                  Started              Ended              
-#   ---------------------------------------------------------------------------------------------------
-#      1.  EC2Resource_HelloWorld                              2015-10-14T16:51:56  RUNNING                
-#          @EC2Resource_HelloWorld_2015-10-14T16:51:56         2015-10-14T16:51:59                     
-#   
-#      2.  ShellCommandActivity_HelloWorld                     2015-10-14T16:51:56  WAITING_FOR_RUNNER     
-#          @ShellCommandActivity_HelloWorld_2015-10-14T16:51:  2015-10-14T16:51:59   
+#       Name                                                Scheduled Start      Status
+#       ID                                                  Started              Ended
+#---------------------------------------------------------------------------------------------------
+#   1.  PigActivity1                                        2015-12-31T06:10:00  WAITING_FOR_RUNNER
+#       @PigActivity1_2015-12-31T06:10:00                   2015-12-31T06:10:05
+#
+#   2.  EmrCluster1                                         2015-12-31T06:10:00  CREATING
+#       @EmrCluster1_2015-12-31T06:10:00                    2015-12-31T06:10:07
+#
+#   3.  InputDataNode1                                      2015-12-31T06:10:00  FINISHED
+#       @InputDataNode1_2015-12-31T06:10:00                 2015-12-31T06:10:05  2015-12-31T06:10:05
+#
+#   4.  OutputDataNode1                                     2015-12-31T06:10:00  WAITING_ON_DEPENDENCIES
+#       @OutputDataNode1_2015-12-31T06:10:00                2015-12-31T06:10:05
 
+  >$ aws datapipeline list-runs --pipeline-id <your pipelineId>
+#       Name                                                Scheduled Start      Status
+#       ID                                                  Started              Ended
+#---------------------------------------------------------------------------------------------------
+#   1.  PigActivity1                                        2015-12-31T06:10:00  FINISHED
+#       @PigActivity1_2015-12-31T06:10:00                   2015-12-31T06:10:05  2015-12-31T06:21:26
+#
+#   2.  EmrCluster1                                         2015-12-31T06:10:00  FINISHED
+#       @EmrCluster1_2015-12-31T06:10:00                    2015-12-31T06:10:07  2015-12-31T06:23:30
+#
+#   3.  InputDataNode1                                      2015-12-31T06:10:00  FINISHED
+#       @InputDataNode1_2015-12-31T06:10:00                 2015-12-31T06:10:05  2015-12-31T06:10:05
+#
+#   4.  OutputDataNode1                                     2015-12-31T06:10:00  FINISHED
+#       @OutputDataNode1_2015-12-31T06:10:00                2015-12-31T06:10:05  2015-12-31T06:21:28
+ 
 ```
 
 After the pipeline is completed, the output and activity log from the pipeline will be saved to the S3 bucket that you
 specified under the following prefix. To view or download these files, navigate to this prefix in
 the S3 section of the [AWS Management Console](https://aws.amazon.com/console/).
 
-    s3://<your S3 logging path>/HelloWorld/<your pipelineId>/<pipeline definition>/<pipeline instance>/<pipeline attempt>
+    s3://<your S3 logging path>/<your pipelineId>/<pipeline instance>/<pipeline attempt>
 
 ## Next steps
 
@@ -100,7 +145,7 @@ setup script, you can free them by running the following command in the HelloWor
 
 ```sh
  $> python setup.py --teardown
-# Request to delete stack [dpl-samples-hello-world] has been sent
+# Request to delete stack [dpl-samples-simple-pig-activity] has been sent
 ```
 
 
